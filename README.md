@@ -6,3 +6,5 @@ This project aims to develop a fine-tuning technique to mitigate gender and ethn
 [Synthetic Demographic Dataset](https://www.kaggle.com/datasets/anthonytherrien/synthetic-population-demographics-dataset?resource=download)
 
 [Dataset containing face images with gender and race but NOT professions](https://huggingface.co/datasets/HuggingFaceM4/FairFace)
+
+[A model to generate images](https://huggingface.co/XLabs-AI/flux-RealismLora?)
