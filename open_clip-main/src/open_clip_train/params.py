@@ -27,9 +27,22 @@ def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--peft",
-        default=False,
-        action="store_true",
-        help="Use PEFT / lora."
+        type=str,
+        default=None,
+        choices=[None, "lora", "dora"],
+        help="Which PEFT to use."
+    )
+    parser.add_argument(
+        "--peft_rank",
+        type=int,
+        default=8,
+        help="Rank of the PEFT."
+    )
+    parser.add_argument(
+        "--peft_alpha",
+        type=int,
+        default=32,
+        help="Alpha of the PEFT."
     )
     parser.add_argument(
         "--train-data",
@@ -70,6 +83,12 @@ def parse_args(args):
         choices=["webdataset", "csv", "synthetic", "auto"],
         default="auto",
         help="Which type of dataset to process."
+    )
+    parser.add_argument(
+        "--data_root",
+        type=str,
+        default=None,
+        help="Whether to use the data root directory for csv dataset."
     )
     parser.add_argument(
         "--dataset-resampled",

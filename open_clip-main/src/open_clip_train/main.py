@@ -28,6 +28,15 @@ try:
 except ImportError:
     hvd = None
 
+import torchvision
+torchvision.disable_beta_transforms_warning()
+
+from pathlib import Path
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[1]  
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+
 from open_clip import create_model_and_transforms, trace_model, get_tokenizer, create_loss
 from open_clip_train.data import get_data
 from open_clip_train.distributed import is_master, init_distributed_device, broadcast_object
@@ -51,6 +60,16 @@ def print_trainable_parameters(model):
     print(
         f"Trainable parameters: {trainable_params} || All parameters: {all_param} || Trainable %: {100 * trainable_params / all_param:.2f}"
     )
+
+def print_peft_adapted_layers(model):
+    lora_params = []
+    for name, param in model.named_parameters():
+        if 'lora_B' in name or 'lora_A' in name:
+            lora_params.append(name)
+    if lora_params:
+        print("LoRA-adapted parameters:", lora_params)
+    else:
+        print("No LoRA parameters found. Check if PEFT is correctly applied.")
 
 
 LATEST_CHECKPOINT_NAME = "epoch_latest.pt"
@@ -307,21 +326,24 @@ def main(args):
                 f.write(f"{name}: {val}\n")
 
     # possible point here to put lora !
-    if args.peft:
+    if args.peft is not None:
         # Define LoRA configuration
         lora_config = LoraConfig(
-            use_dora=True,
-            r=4,  # Rank for the low-rank adaptation
-            lora_alpha=16,  # Scaling parameter for LoRA
+            use_dora=args.peft == "dora",  # Use DoRA instead of LoRA
+            r=args.peft_rank,  # Rank for the low-rank adaptation
+            lora_alpha=args.peft_alpha,  # Scaling parameter for LoRA
             lora_dropout=0.1,  # Dropout rate for LoRA
             # Target module(s) to apply LoRA to (e.g., fully connected layer)
-            #target_modules=['linear'],
+            target_modules=["out_proj", "c_fc", "c_proj"],
         )
+        print("Before applying PEFT:")
+        print_trainable_parameters(model)
         lora_model = get_peft_model(model, lora_config)
-        print("After applying DoRa:")
+        print("After applying PEFT:")
         print_trainable_parameters(lora_model)
-        import pdb; pdb.set_trace()
-        exit(0)
+        #print_peft_adapted_layers(lora_model)
+        #import pdb; pdb.set_trace()
+        #exit(0)
 
     if args.distributed and not args.horovod:
         if args.use_bn_sync:
@@ -433,6 +455,7 @@ def main(args):
         (preprocess_train, preprocess_val),
         epoch=start_epoch,
         tokenizer=tokenizer,
+        data_root=args.data_root,
     )
     assert len(data), 'At least one train or eval dataset must be specified.'
 
