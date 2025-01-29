@@ -44,8 +44,8 @@ We evaluated the model bias though the following [Colab notebook](https://colab.
 
 Before our fine-tune, the model bias was the following:
 
-<img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/gender_bias.png" alt="drawing" width="300"/>
-<img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/race_bias.png" alt="drawing" width="300"/>
+<img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/gender_bias.png" alt="drawing" width="600"/>
+<img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/race_bias.png" alt="drawing" width="600"/>
 
 
 #### 
