@@ -39,7 +39,15 @@ These are two examples of generated images:
 <img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/prompt_58_00002_.png" alt="drawing" width="150"/>
 <img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/prompt_5_00001_.png" alt="drawing" width="150"/>
 
-These images associated with the corresponding captions, were used to fine-tune [!CLIP](https://github.com/openai/CLIP) model 
+These images associated with the corresponding captions, were used to fine-tune [CLIP](https://github.com/openai/CLIP) model to mitigate its race and gender bias.
+We evaluated the model bias though the following [Colab notebook](https://colab.research.google.com/drive/13tefNTV2AOAU6M182fvP7g8SYXX_IE3D?usp=sharing) provided by the winter school organizers.
+
+Before our fine-tune, the model bias was the following:
+
+<img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/gender_bias.png" alt="drawing" width="300"/>
+<img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/race_bias.png" alt="drawing" width="300"/>
+
+
 #### 
 
 
