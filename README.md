@@ -35,6 +35,8 @@ Example of **captions** are:
 With these prompts, we generated about 3500 images. 
 
 These are two examples of generated images:
+![alt text]([http://url/to/img.png](https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/prompt_58_00002_.png))
+![alt text]([http://url/to/img.png](https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/prompt_5_00001_.png))
 
 
 #### 
