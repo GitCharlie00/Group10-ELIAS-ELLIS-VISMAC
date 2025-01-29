@@ -8,10 +8,18 @@ import sys
 import random
 from datetime import datetime
 from functools import partial
+import io
+import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
 from torch import optim
+from scipy.special import rel_entr
+from scipy.spatial.distance import jensenshannon
+
+import csv
+from PIL import Image
+from torch.utils.data import Dataset
 
 try:
     import wandb
@@ -43,7 +51,7 @@ from open_clip_train.distributed import is_master, init_distributed_device, broa
 from open_clip_train.logger import setup_logging
 from open_clip_train.params import parse_args
 from open_clip_train.scheduler import cosine_lr, const_lr, const_lr_cooldown
-from open_clip_train.train import train_one_epoch, evaluate
+from open_clip_train.train import train_one_epoch, evaluate, evaluate_bias
 from open_clip_train.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 from peft import get_peft_model, LoraConfig, TaskType
@@ -70,6 +78,89 @@ def print_peft_adapted_layers(model):
         print("LoRA-adapted parameters:", lora_params)
     else:
         print("No LoRA parameters found. Check if PEFT is correctly applied.")
+
+def visualize(probabilities, bias_classes, professions):
+    x = np.arange(len(professions))  # x positions for bars
+
+    if len(bias_classes) == 2:
+        figsize = (20, 8)
+    else:
+        figsize = (25, 10)
+
+    # Create a single figure with two subplots side by side
+    fig, axes = plt.subplots(1, len(bias_classes), figsize=figsize, sharey=True)
+
+    # Show where uniform probabilities is achieved ()
+    uniform = 1/len(professions)
+
+    for i, ax in enumerate(axes):
+        values = probabilities[i].tolist()
+        bars = ax.bar(x, values)
+        ax.axhline(uniform, color='black', linestyle='--', label=f'Uniform at: {uniform}')
+        ax.set_title(bias_classes[i])
+        ax.set_xlabel("Professions")
+        ax.set_ylabel("Probabilities" if i == 0 else "")  # Add label only to the first subplot
+        ax.set_xticks(x)
+        ax.set_xticklabels(professions)
+        ax.set_ylim(0, 1)
+        # Annotate bars with their values
+        for bar, value in zip(bars, values):
+            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.02,
+                    f"{value:.2f}", ha='center', va='bottom')
+        ax.legend()
+
+    plt.tight_layout()
+    
+    # Save the figure to a BytesIO buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=100)
+    plt.close(fig)  # Close the figure to free memory
+    buf.seek(0)
+
+    # Convert buffer to a NumPy array for TensorBoard
+    image = Image.open(buf)
+    image_np = np.array(image)
+    buf.close()
+
+    return image_np
+
+
+def compute_mean_kl_divergence(observed_distributions):
+    """
+    Compute the KL divergence between the observed distribution
+    and a uniform distribution.
+    
+    Args:
+        observed_distribution (list or np.ndarray): The observed probability distribution.
+    
+    Returns:
+        float: The KL divergence value.
+    """
+    # Convert to a NumPy array if not already
+
+    kl_lst = []
+    js_lst = []
+
+    for observed_distribution in observed_distributions:
+        observed_distribution = np.array(observed_distribution)
+        
+        # Ensure the observed distribution sums to 1
+        if not np.isclose(np.sum(observed_distribution), 1, atol=0.01):
+            print("WARNING: The observed distribution does not sum to 1.")
+        #    raise ValueError("The observed distribution must sum to 1.")
+        
+        # Create a uniform distribution of the same size
+        uniform_distribution = np.full_like(observed_distribution, 1 / len(observed_distribution))
+        
+        # Compute the KL divergence
+        kl_divergence = np.sum(rel_entr(observed_distribution, uniform_distribution))
+
+        shannon_jensen_divergence = jensenshannon(observed_distribution, uniform_distribution) ** 2
+        
+        kl_lst.append(kl_divergence)
+        js_lst.append(shannon_jensen_divergence)
+
+    return np.mean(kl_lst), np.mean(js_lst)
 
 
 LATEST_CHECKPOINT_NAME = "epoch_latest.pt"
@@ -341,6 +432,7 @@ def main(args):
         lora_model = get_peft_model(model, lora_config)
         print("After applying PEFT:")
         print_trainable_parameters(lora_model)
+        model = lora_model
         #print_peft_adapted_layers(lora_model)
         #import pdb; pdb.set_trace()
         #exit(0)
@@ -541,6 +633,23 @@ def main(args):
 
         if any(v in data for v in ('val', 'imagenet-val', 'imagenet-v2')):
             evaluate(model, data, completed_epoch, args, tb_writer=writer, tokenizer=tokenizer)
+
+        if args.fairface_path is not None:
+            mean_gender_results, gender_classes, mean_race_results, race_classes, professions_raw = evaluate_bias(model, tokenizer, preprocess_val, args.fairface_path, device)
+            img_gender = visualize(mean_gender_results, gender_classes, professions_raw)
+            img_race = visualize(mean_race_results, race_classes, professions_raw)
+            # Add the image to TensorBoard
+            writer.add_image("Bias Gender", img_gender, epoch, dataformats="HWC")
+            writer.add_image("Bias Race", img_race, epoch, dataformats="HWC")
+            # compute KL divergence
+            kl_div_gender, js_div_gender = compute_mean_kl_divergence(mean_gender_results)
+            kl_div_race, js_div_race = compute_mean_kl_divergence(mean_race_results)
+            # Add the KL divergence to TensorBoard
+            writer.add_scalar("KL Div Gender", kl_div_gender, epoch)
+            writer.add_scalar("KL Div Race", kl_div_race, epoch)
+            # Add the Jensen-Shannon divergence to TensorBoard
+            writer.add_scalar("JS Div Gender", js_div_gender, epoch)
+            writer.add_scalar("JS Div Race", js_div_race, epoch)
 
         # Saving checkpoints.
         if args.save_logs:

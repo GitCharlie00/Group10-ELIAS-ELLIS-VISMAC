@@ -26,6 +26,12 @@ class ParseKwargs(argparse.Action):
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--fairface_path",
+        type=str,
+        default=None,
+        help="Path to FairFace dataset."
+    )
+    parser.add_argument(
         "--peft",
         type=str,
         default=None,
@@ -41,7 +47,7 @@ def parse_args(args):
     parser.add_argument(
         "--peft_alpha",
         type=int,
-        default=32,
+        default=16,
         help="Alpha of the PEFT."
     )
     parser.add_argument(
