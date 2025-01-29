@@ -145,7 +145,8 @@ def compute_mean_kl_divergence(observed_distributions):
         observed_distribution = np.array(observed_distribution)
         
         # Ensure the observed distribution sums to 1
-        #if not np.isclose(np.sum(observed_distribution), 1):
+        if not np.isclose(np.sum(observed_distribution), 1, atol=0.01):
+            print("WARNING: The observed distribution does not sum to 1.")
         #    raise ValueError("The observed distribution must sum to 1.")
         
         # Create a uniform distribution of the same size
