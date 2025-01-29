@@ -32,6 +32,11 @@ Example of **captions** are:
 - *A young female driver of indian descent who specializes in long-haul trucking known for his efficiency and excellent safety record*
 - *A seasoned indian woman truck driver specializing in cross-country freight transport known for her expert navigation skills* 
 
+With these prompts, we generated about 3500 images. 
+
+These are two examples of generated images:
+
+
 #### 
 
 
