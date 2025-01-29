@@ -32,14 +32,14 @@ Example of **captions** are:
 - *A young female driver of indian descent who specializes in long-haul trucking known for his efficiency and excellent safety record*
 - *A seasoned indian woman truck driver specializing in cross-country freight transport known for her expert navigation skills* 
 
-With these prompts, we generated about 3500 images. 
+With these prompts, we generated a total of 3521 images. 
 
 These are two examples of generated images:
 
 <img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/prompt_58_00002_.png" alt="drawing" width="150"/>
 <img src="https://github.com/GitCharlie00/Group10-ELIAS-ELLIS-VISMAC/blob/main/imgs/prompt_5_00001_.png" alt="drawing" width="150"/>
 
-
+These images associated with the corresponding captions, were used to fine-tune [!CLIP](https://github.com/openai/CLIP) model 
 #### 
 
 
