@@ -26,6 +26,12 @@ class ParseKwargs(argparse.Action):
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--reload_ckpt",
+        default=None,
+        type=str,
+        help="Path to checkpoint to reload."
+    )
+    parser.add_argument(
         "--zero_shot",
         default=False,
         action="store_true",

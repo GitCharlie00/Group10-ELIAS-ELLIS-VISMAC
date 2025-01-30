@@ -437,6 +437,9 @@ def main(args):
         #import pdb; pdb.set_trace()
         #exit(0)
 
+    if args.reload_ckpt:
+        model.load_state_dict(torch.load(args.reload_ckpt, map_location=device))
+
     if args.distributed and not args.horovod:
         if args.use_bn_sync:
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
