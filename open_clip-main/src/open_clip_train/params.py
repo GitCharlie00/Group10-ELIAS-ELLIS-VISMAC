@@ -26,6 +26,12 @@ class ParseKwargs(argparse.Action):
 def parse_args(args):
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--zero_shot",
+        default=False,
+        action="store_true",
+        help="Run zero shot evaluation."
+    )
+    parser.add_argument(
         "--fairface_path",
         type=str,
         default=None,

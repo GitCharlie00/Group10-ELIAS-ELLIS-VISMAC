@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 from PIL import Image
 import csv
+import torchvision.datasets as torchvision_datasets
+import torch
 
 import numpy as np
 import torch
@@ -488,3 +490,194 @@ def evaluate_bias(model, tokenizer, transforms, fairface_path, device='cuda:0'):
 
     model.train()
     return mean_gender_results, gender_dataset.get_classes(), mean_race_results, race_dataset.get_classes(), professions_raw
+
+
+FOOD_LABELS = [
+    'apple pie',
+    'baby back ribs',
+    'baklava',
+    'beef carpaccio',
+    'beef tartare',
+    'beet salad',
+    'beignets',
+    'bibimbap',
+    'bread pudding',
+    'breakfast burrito',
+    'bruschetta',
+    'caesar salad',
+    'cannoli',
+    'caprese salad',
+    'carrot cake',
+    'ceviche',
+    'cheese plate',
+    'cheesecake',
+    'chicken curry',
+    'chicken quesadilla',
+    'chicken wings',
+    'chocolate cake',
+    'chocolate mousse',
+    'churros',
+    'clam chowder',
+    'club sandwich',
+    'crab cakes',
+    'creme brulee',
+    'croque madame',
+    'cup cakes',
+    'deviled eggs',
+    'donuts',
+    'dumplings',
+    'edamame',
+    'eggs benedict',
+    'escargots',
+    'falafel',
+    'filet mignon',
+    'fish and chips',
+    'foie gras',
+    'french fries',
+    'french onion soup',
+    'french toast',
+    'fried calamari',
+    'fried rice',
+    'frozen yogurt',
+    'garlic bread',
+    'gnocchi',
+    'greek salad',
+    'grilled cheese sandwich',
+    'grilled salmon',
+    'guacamole',
+    'gyoza',
+    'hamburger',
+    'hot and sour soup',
+    'hot dog',
+    'huevos rancheros',
+    'hummus',
+    'ice cream',
+    'lasagna',
+    'lobster bisque',
+    'lobster roll sandwich',
+    'macaroni and cheese',
+    'macarons',
+    'miso soup',
+    'mussels',
+    'nachos',
+    'omelette',
+    'onion rings',
+    'oysters',
+    'pad thai',
+    'paella',
+    'pancakes',
+    'panna cotta',
+    'peking duck',
+    'pho',
+    'pizza',
+    'pork chop',
+    'poutine',
+    'prime rib',
+    'pulled pork sandwich',
+    'ramen',
+    'ravioli',
+    'red velvet cake',
+    'risotto',
+    'samosa',
+    'sashimi',
+    'scallops',
+    'seaweed salad',
+    'shrimp and grits',
+    'spaghetti bolognese',
+    'spaghetti carbonara',
+    'spring rolls',
+    'steak',
+    'strawberry shortcake',
+    'sushi',
+    'tacos',
+    'takoyaki',
+    'tiramisu',
+    'tuna tartare',
+    'waffles',
+]
+
+OXFORDPETS_LABELS = [
+    'Abyssinian',
+    'American Bulldog',
+    'American Pit Bull Terrier',
+    'Basset Hound',
+    'Beagle',
+    'Bengal',
+    'Birman',
+    'Bombay',
+    'Boxer',
+    'British Shorthair',
+    'Chihuahua',
+    'Egyptian Mau',
+    'English Cocker Spaniel',
+    'English Setter',
+    'German Shorthaired',
+    'Great Pyrenees',
+    'Havanese',
+    'Japanese Chin',
+    'Keeshond',
+    'Leonberger',
+    'Maine Coon',
+    'Miniature Pinscher',
+    'Newfoundland',
+    'Persian',
+    'Pomeranian',
+    'Pug',
+    'Ragdoll',
+    'Russian Blue',
+    'Saint Bernard',
+    'Samoyed',
+    'Scottish Terrier',
+    'Shiba Inu',
+    'Siamese',
+    'Sphynx',
+    'Staffordshire Bull Terrier',
+    'Wheaten Terrier',
+    'Yorkshire Terrier',
+]
+
+
+def zero_shot_performance(path_root, model, tokenizer, transform, device='cuda:0'):
+    # By setting download=True the datasets will be directly downloaded under 'root/<dataset_name>'
+    oxford_pets_dataset = torchvision_datasets.OxfordIIITPet(
+        root = path_root,
+        split = 'test',
+        transform = transform,
+        download = True
+    )
+
+    food = torchvision_datasets.Food101(
+        root = path_root,
+        split = 'test',
+        transform = transform,
+        download = True
+    )
+
+    datasets = [oxford_pets_dataset, food]
+    classes = [OXFORDPETS_LABELS, FOOD_LABELS]
+    templates = ['a photo of a {}, a type of pet.', 'a photo of {}, a type of food.']
+
+    for dataset, cls, template in zip(datasets, classes, templates):
+        dataloader = DataLoader(
+            dataset,
+            batch_size = 528,
+            num_workers = 4,
+            shuffle = False,
+            pin_memory = True
+        )
+        prompts = [template.format(p) for p in cls]
+        tokenized_text = tokenizer(prompts).to(device)
+        text_features = model.encode_text(tokenized_text)
+        text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+        corrects = 0
+        for images, labels in tqdm(dataloader, position=0, leave=True, desc='Inference'):
+            images = images.to(device)
+            with torch.no_grad():
+                image_features = model.encode_image(images)
+                image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+
+                similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
+                preds = similarity.topk(1).indices.squeeze().cpu()
+                corrects += (preds == labels).sum().item()
+
+        print(f'\nAccuracy on {dataset.__class__.__name__}: {round((corrects / len(dataset))*100, 2)}%')

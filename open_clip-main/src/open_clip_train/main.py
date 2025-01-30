@@ -51,7 +51,7 @@ from open_clip_train.distributed import is_master, init_distributed_device, broa
 from open_clip_train.logger import setup_logging
 from open_clip_train.params import parse_args
 from open_clip_train.scheduler import cosine_lr, const_lr, const_lr_cooldown
-from open_clip_train.train import train_one_epoch, evaluate, evaluate_bias
+from open_clip_train.train import train_one_epoch, evaluate, evaluate_bias, zero_shot_performance
 from open_clip_train.file_utils import pt_load, check_exists, start_sync_process, remote_sync
 
 from peft import get_peft_model, LoraConfig, TaskType
@@ -549,7 +549,7 @@ def main(args):
         tokenizer=tokenizer,
         data_root=args.data_root,
     )
-    assert len(data), 'At least one train or eval dataset must be specified.'
+    assert len(data) or args.zero_shot, 'At least one train or eval dataset must be specified.'
 
     # create scheduler if train
     scheduler = None
@@ -612,6 +612,19 @@ def main(args):
             torch._dynamo.config.optimize_ddp = False
 
         model = torch.compile(original_model)
+
+    if args.zero_shot:
+        model.eval()
+        zero_shot_performance("../../datasets", model, tokenizer, preprocess_val)
+        if args.fairface_path is not None:
+            mean_gender_results, gender_classes, mean_race_results, race_classes, professions_raw = evaluate_bias(model, tokenizer, preprocess_val, args.fairface_path, device)
+            kl_div_gender, js_div_gender = compute_mean_kl_divergence(mean_gender_results)
+            kl_div_race, js_div_race = compute_mean_kl_divergence(mean_race_results)
+            print("KL divergence for Gender:", kl_div_gender)
+            print("JS divergence for Gender:", js_div_gender)
+            print("KL divergence for Race:", kl_div_race)
+            print("JS divergence for Race:", js_div_race)
+        exit(0)
 
     if 'train' not in data:
         # If using int8, convert to inference mode.
