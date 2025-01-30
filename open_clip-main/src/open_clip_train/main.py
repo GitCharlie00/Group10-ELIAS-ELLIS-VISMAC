@@ -438,7 +438,8 @@ def main(args):
         #exit(0)
 
     if args.reload_ckpt:
-        model.load_state_dict(torch.load(args.reload_ckpt, map_location=device))
+        print(f"Reloading model from {args.reload_ckpt}")
+        model.load_state_dict(torch.load(args.reload_ckpt, map_location=device)['state_dict'])
 
     if args.distributed and not args.horovod:
         if args.use_bn_sync:
